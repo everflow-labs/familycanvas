@@ -21,11 +21,15 @@ export type CreateTreeResponse = ApiResponse<Tree>;
 /** People */
 export interface CreatePersonRequest {
   tree_id: UUID;
-  first_name: string;
-  last_name?: string | null;
+  name: string;  // Match database.ts
+  native_script_name?: string | null;
   gender?: Person["gender"];
   birth_date?: string | null;
   death_date?: string | null;
+  location?: string | null;
+  photo_url?: string | null;
+  is_adopted?: boolean;
+  is_deceased?: boolean;
   notes?: string | null;
 }
 export type CreatePersonResponse = ApiResponse<Person>;
@@ -43,7 +47,7 @@ export interface CreateRelationshipRequest {
   tree_id: UUID;
   from_person_id: UUID;
   to_person_id: UUID;
-  type: Relationship["type"];
+  type: Relationship["relationship_type"];
 }
 export type CreateRelationshipResponse = ApiResponse<Relationship>;
 export type ListRelationshipsResponse = ApiResponse<Relationship[]>;

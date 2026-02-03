@@ -14,19 +14,31 @@ export async function getPrimaryTree(userId: string) {
 }
 
 export async function createPrimaryTree(userId: string, name = "My Family") {
-  // You can create more later; for now we ensure at least one primary.
   const { data, error } = await supabase
     .from("trees")
     .insert([{ user_id: userId, name, is_primary: true }])
     .select("*")
-    .single();
+    .maybeSingle(); // ✅ Changed from .single() to .maybeSingle()
 
   if (error) throw error;
+  if (!data) throw new Error("Failed to create tree");
   return data;
 }
 
 export async function getOrCreatePrimaryTree(userId: string) {
+  // First, try to get existing primary tree
   const existing = await getPrimaryTree(userId);
   if (existing) return existing;
-  return await createPrimaryTree(userId);
+
+  // If no tree exists, create one
+  try {
+    return await createPrimaryTree(userId);
+  } catch (error: any) {
+    // If creation failed (e.g., race condition), try getting again
+    if (error?.code === '23505') { // Unique constraint violation
+      const retry = await getPrimaryTree(userId);
+      if (retry) return retry;
+    }
+    throw error;
+  }
 }

@@ -2,53 +2,81 @@
 
 export type UUID = string;
 
-export type Gender = "male" | "female" | "nonbinary" | "unknown";
+/**
+ * Supabase returns DATE and TIMESTAMPTZ fields as strings in JS.
+ * - DATE -> "YYYY-MM-DD" (string)
+ * - TIMESTAMPTZ -> ISO string
+ */
+
+export type Gender =
+  | "male"
+  | "female"
+  | "nonbinary"
+  | "unknown"
+  | string; // allow other values if you store them as free text
+
+export interface Profile {
+  id: UUID; // auth.users.id
+  full_name: string | null;
+  leaf_capacity: number;
+  preferred_layout: "timeline" | "compact" | string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Tree {
+  id: UUID;
+  user_id: UUID; // profiles.id
+  name: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Person {
   id: UUID;
   tree_id: UUID;
 
-  first_name: string;
-  last_name?: string | null;
+  name: string;
+  native_script_name: string | null;
 
-  // Optional metadata
-  gender?: Gender | null;
-  birth_date?: string | null; // ISO string (YYYY-MM-DD)
-  death_date?: string | null; // ISO string (YYYY-MM-DD)
-  notes?: string | null;
+  birth_date: string | null; // DATE
+  birth_date_unknown: boolean;
 
-  created_at?: string; // ISO datetime
-  updated_at?: string; // ISO datetime
+  death_date: string | null; // DATE
+  death_date_unknown: boolean;
+  is_deceased: boolean;
+
+  location: string | null;
+  photo_url: string | null;
+
+  gender: Gender | null;
+  is_adopted: boolean;
+
+  notes: string | null;
+
+  display_fields: Record<string, any> | null; // jsonb
+  creation_order: number | null;
+
+  created_at: string;
+  updated_at: string;
 }
 
-export type RelationshipType =
-  | "parent_child"
-  | "spouse"
-  | "partner"
-  | "sibling"
-  | "other";
+export type RelationshipType = "partner" | "parent_child" | "sibling";
+export type ParentType = "biological" | "adoptive" | null;
 
 export interface Relationship {
   id: UUID;
   tree_id: UUID;
-
-  from_person_id: UUID;
-  to_person_id: UUID;
-
-  type: RelationshipType;
-
-  // Optional fields for ordering / metadata
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface Tree {
-  id: UUID;
-  owner_user_id: UUID;
-
-  name: string;
-  description?: string | null;
-
-  created_at?: string;
-  updated_at?: string;
+  person_a_id: UUID;
+  person_b_id: UUID;
+  relationship_type: RelationshipType;  // ✅ Match actual DB column
+  relationship_status: string | null;   // ✅ Simpler name
+  parent_type: ParentType;
+  is_primary_parent_set: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  notes: string | null;  // Not "relationship_notes"
+  created_at: string;
+  updated_at: string;
 }
