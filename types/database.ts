@@ -52,6 +52,7 @@ export interface Person {
 
   gender: Gender | null;
   is_adopted: boolean;
+  is_bloodline?: boolean;
 
   notes: string | null;
 

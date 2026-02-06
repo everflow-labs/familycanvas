@@ -159,25 +159,76 @@ export function getAllDescendants(personId: UUID, graph: RelationshipGraph): Set
 }
 
 /**
- * Checklist 4.1: implement getVisiblePeople() to exclude collapsed descendants. :contentReference[oaicite:9]{index=9}
+ * Make a canonical pair key from two parent IDs (or one parent for solo children).
+ * Used as the key in collapsedIds to enable per-couple collapse.
+ */
+export function makePairKey(parentA: UUID, parentB?: UUID): string {
+  if (!parentB) return `${parentA}_solo`;
+  return [parentA, parentB].sort().join('_');
+}
+
+/**
+ * Get children shared between two specific parents.
+ */
+export function getSharedChildren(parentA: UUID, parentB: UUID, graph: RelationshipGraph): UUID[] {
+  const childrenA = graph.childrenByParent.get(parentA) || new Set<UUID>();
+  const childrenB = graph.childrenByParent.get(parentB) || new Set<UUID>();
+  const shared: UUID[] = [];
+  for (const childId of childrenA) {
+    if (childrenB.has(childId)) shared.push(childId);
+  }
+  return shared;
+}
+
+/**
+ * Get solo children of a parent (children that don't have any other known parent).
+ */
+export function getSoloChildren(parentId: UUID, graph: RelationshipGraph): UUID[] {
+  const children = graph.childrenByParent.get(parentId) || new Set<UUID>();
+  const solo: UUID[] = [];
+  for (const childId of children) {
+    const parentLinks = graph.parentsByChild.get(childId) || [];
+    if (parentLinks.length <= 1) {
+      solo.push(childId);
+    }
+  }
+  return solo;
+}
+
+/**
+ * Per-couple collapse: collapsedPairKeys contains pair keys like "parentA_parentB" or "parentA_solo".
+ * Only hides children of that specific pair (+ all their descendants and their partners).
  */
 export function getVisiblePeople(
   people: Person[],
   graph: RelationshipGraph,
-  collapsedPersonIds: UUID[] | Set<UUID>
+  collapsedPairKeys: Set<string>
 ): Person[] {
-  const collapsed = collapsedPersonIds instanceof Set ? collapsedPersonIds : new Set(collapsedPersonIds);
-
   const hidden = new Set<UUID>();
-  for (const collapsedId of collapsed) {
-    for (const d of getAllDescendants(collapsedId, graph)) hidden.add(d);
+
+  for (const pairKey of collapsedPairKeys) {
+    const parts = pairKey.split('_');
+    let childrenToHide: UUID[] = [];
+
+    if (parts.length === 2 && parts[1] === 'solo') {
+      // Solo parent collapse
+      childrenToHide = getSoloChildren(parts[0], graph);
+    } else if (parts.length === 2) {
+      // Pair collapse: hide only shared children
+      childrenToHide = getSharedChildren(parts[0], parts[1], graph);
+    }
+
+    for (const childId of childrenToHide) {
+      hidden.add(childId);
+      for (const d of getAllDescendants(childId, graph)) hidden.add(d);
+    }
   }
 
   return people.filter((p) => !hidden.has(p.id));
 }
 
 /**
- * Helpful stable ordering (Spec): unknown birthdates sort last; tie-break by creation_order. :contentReference[oaicite:10]{index=10}
+ * Helpful stable ordering (Spec): unknown birthdates sort last; tie-break by creation_order.
  */
 export function sortPeopleStable(people: Person[]): Person[] {
   return people.slice().sort((a, b) => {
@@ -185,7 +236,7 @@ export function sortPeopleStable(people: Person[]): Person[] {
     const bHasBirth = !!b.birth_date && !b.birth_date_unknown;
 
     if (aHasBirth && bHasBirth && a.birth_date !== b.birth_date) {
-      return a.birth_date! < b.birth_date! ? -1 : 1; // oldest first (earlier date)
+      return a.birth_date! < b.birth_date! ? -1 : 1;
     }
     if (aHasBirth !== bHasBirth) return aHasBirth ? -1 : 1;
 

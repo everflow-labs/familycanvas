@@ -54,16 +54,18 @@ function RelationshipEdge({
     
     const status = relationship.relationship_status;
     const isDivorced = status === 'divorced';
-    const isDeceased = status === 'deceased_partner';
+    const isSeparated = status === 'separated';
+    const isDeceased = status === 'deceased';
+    const isFormer = isDivorced || isSeparated || isDeceased;
     
     return (
       <BaseEdge
         id={id}
         path={path}
         style={{
-          stroke: isDivorced || isDeceased ? '#9ca3af' : '#3b82f6',
+          stroke: isFormer ? '#9ca3af' : '#3b82f6',
           strokeWidth: 2,
-          strokeDasharray: isDivorced ? '8,4' : isDeceased ? '4,4' : undefined,
+          strokeDasharray: (isDivorced || isSeparated) ? '8,4' : isDeceased ? '4,4' : undefined,
         }}
       />
     );
@@ -106,8 +108,7 @@ function RelationshipEdge({
       `.replace(/\s+/g, ' ').trim();
     }
     
-    const isAdoptive = relationship.parent_type === 'adoptive';
-    
+    // Adoption is indicated by heart icon on the child node, not by line style
     return (
       <BaseEdge
         id={id}
@@ -115,7 +116,6 @@ function RelationshipEdge({
         style={{
           stroke: '#6b7280',
           strokeWidth: 2,
-          strokeDasharray: isAdoptive ? '5,3' : undefined,
           fill: 'none',
         }}
       />
