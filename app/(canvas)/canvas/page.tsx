@@ -431,7 +431,7 @@ export default function CanvasPage() {
                 onSkip={skipProfile}
               />
             ) : people.length === 0 ? (
-              <div className="flex h-full items-center justify-center p-4">
+              <div className="flex h-full items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
                 <div className="max-w-2xl w-full">
                   {/* Header */}
                   <div className="text-center mb-8">
