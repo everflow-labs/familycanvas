@@ -330,6 +330,8 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4 text-xs text-white/30">
             <Link href="/support" className="hover:text-white/50 transition-colors">Help & Support</Link>
+            <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
             <span>© {new Date().getFullYear()} FamilyCanvas. All rights reserved.</span>
           </div>
         </div>

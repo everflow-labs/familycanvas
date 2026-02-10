@@ -10,7 +10,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/canvas',
           '/settings',
-          '/support',
           '/purchase',
           '/api/',
           '/auth/',

@@ -162,4 +162,12 @@ export const pageMetadata = {
     title: 'Shared Family Tree',
     description: 'View a shared family tree on FamilyCanvas. Explore family connections across generations and countries.',
   },
+  privacy: {
+    title: 'Privacy Policy',
+    description: 'FamilyCanvas privacy policy. Your family data stays yours — we never sell, share, or monetize your information.',
+  },
+  terms: {
+    title: 'Terms of Service',
+    description: 'FamilyCanvas terms of service. Read about your rights, data ownership, and how we operate.',
+  },
 };
