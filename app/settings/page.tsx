@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/components/auth/AuthProvider';
 import PhotoUpload from '@/components/forms/PhotoUpload';
 import { getProfile, updateProfile, type Profile } from '@/lib/api/profiles';
+import { supabase } from '@/lib/supabase/client';
 import UpgradeModal, { type UpgradeReason } from '@/components/modals/UpgradeModal';
 
 const MOTIVATION_OPTIONS = [
@@ -82,8 +83,33 @@ export default function SettingsPage() {
     );
     if (!doubleConfirmed) return;
 
-    // For now, just sign out. Full account deletion requires a server-side function.
-    alert('Account deletion is not yet available. Please contact support.');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('You must be logged in to delete your account.');
+        return;
+      }
+
+      const res = await fetch('/api/account/delete', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        alert(body.error || 'Failed to delete account. Please contact support.');
+        return;
+      }
+
+      // Sign out locally and redirect to landing page
+      await signOut();
+      router.push('/');
+    } catch (err) {
+      console.error('Delete account error:', err);
+      alert('An unexpected error occurred. Please contact support.');
+    }
   };
 
   if (loading) {
