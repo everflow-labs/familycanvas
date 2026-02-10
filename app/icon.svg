@@ -1,0 +1,39 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Emerald gradient background -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- Gen 1: Grandparents -->
+  <circle cx="9" cy="4" r="2" stroke="white" stroke-width="1.1" fill="none" opacity="0.5"/>
+  <circle cx="23" cy="4" r="2" stroke="white" stroke-width="1.1" fill="none" opacity="0.5"/>
+
+  <!-- Lines: Grandparents → Parents -->
+  <line x1="9" y1="6" x2="12.5" y2="9.5" stroke="white" stroke-width="0.8" opacity="0.3"/>
+  <line x1="23" y1="6" x2="19.5" y2="9.5" stroke="white" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Gen 2: Parents -->
+  <circle cx="12.5" cy="11.5" r="2.3" fill="white" opacity="0.7"/>
+  <circle cx="19.5" cy="11.5" r="2.3" fill="white" opacity="0.7"/>
+  <line x1="14.8" y1="11.5" x2="17.2" y2="11.5" stroke="white" stroke-width="0.9" opacity="0.4"/>
+
+  <!-- Line: Parents → You -->
+  <line x1="16" y1="13.8" x2="16" y2="17" stroke="white" stroke-width="1.2" opacity="0.55"/>
+
+  <!-- Gen 3: You + Partner -->
+  <circle cx="16" cy="20" r="3.2" fill="white"/>
+  <circle cx="25" cy="20" r="2" fill="white" opacity="0.6"/>
+  <line x1="19.2" y1="20" x2="23" y2="20" stroke="white" stroke-width="0.8" opacity="0.35"/>
+
+  <!-- Lines: You → Grandchildren -->
+  <line x1="14.5" y1="23" x2="11.5" y2="26.5" stroke="white" stroke-width="0.9" opacity="0.4"/>
+  <line x1="17.5" y1="23" x2="20.5" y2="26.5" stroke="white" stroke-width="0.9" opacity="0.4"/>
+
+  <!-- Gen 4: Grandchildren -->
+  <circle cx="10.5" cy="28" r="1.5" fill="white" opacity="0.5"/>
+  <circle cx="21.5" cy="28" r="1.5" fill="white" opacity="0.5"/>
+</svg>

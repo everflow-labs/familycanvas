@@ -8,6 +8,7 @@ export type Profile = {
   motivation: string | null;
   family_origin: string | null;
   leaf_capacity: number;
+  tree_limit: number;
   preferred_layout: string;
   profile_completed: boolean;
   has_seen_tutorial: boolean;

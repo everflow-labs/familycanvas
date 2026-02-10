@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/components/auth/AuthProvider';
 import PhotoUpload from '@/components/forms/PhotoUpload';
 import { getProfile, updateProfile, type Profile } from '@/lib/api/profiles';
+import UpgradeModal, { type UpgradeReason } from '@/components/modals/UpgradeModal';
 
 const MOTIVATION_OPTIONS = [
   { value: 'tracking_family', label: 'Keeping track of extended family' },
@@ -31,6 +32,8 @@ export default function SettingsPage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [motivation, setMotivation] = useState<string | null>(null);
   const [familyOrigin, setFamilyOrigin] = useState('');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<UpgradeReason>('premium_feature');
 
   useEffect(() => {
     async function load() {
@@ -238,7 +241,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               <p className="text-sm text-gray-600 mt-1">
-                Includes 2 family lines and up to {profile?.leaf_capacity ?? 100} leaves per line.
+                Includes {profile?.tree_limit ?? 2} family lines and up to {profile?.leaf_capacity ?? 100} leaves per line.
               </p>
             </div>
 
@@ -254,14 +257,14 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-900">More family lines</div>
-                    <div className="text-xs text-gray-500">Add additional trees beyond the included 2</div>
+                    <div className="text-xs text-gray-500">Add additional canvases beyond the included {profile?.tree_limit ?? 2}</div>
                   </div>
                 </div>
                 <button
-                  disabled
-                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed"
+                  onClick={() => { setUpgradeReason('multi_tree'); setUpgradeOpen(true); }}
+                  className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
                 >
-                  Coming soon
+                  Add more
                 </button>
               </div>
 
@@ -279,10 +282,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button
-                  disabled
-                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed"
+                  onClick={() => { setUpgradeReason('leaf_capacity'); setUpgradeOpen(true); }}
+                  className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
                 >
-                  Coming soon
+                  Add more
                 </button>
               </div>
 
@@ -341,6 +344,12 @@ export default function SettingsPage() {
           </section>
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </ProtectedRoute>
   );
 }

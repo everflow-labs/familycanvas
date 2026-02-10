@@ -322,10 +322,10 @@ const useTreeStore = create<TreeState & TreeActions>((set, get) => ({
   },
 
   createNewTree: async (name) => {
-    const { allTrees } = get();
+    const { allTrees, profile } = get();
+    const treeLimit = profile?.tree_limit ?? FREE_TREE_LIMIT;
 
-    // Free tier check: only 1 tree allowed
-    if (allTrees.length >= FREE_TREE_LIMIT) {
+    if (allTrees.length >= treeLimit) {
       useUIStore.getState().openUpgrade('multi_tree');
       return;
     }

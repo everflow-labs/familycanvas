@@ -380,7 +380,7 @@ export default function CanvasPage() {
           userName={profile?.full_name || user?.email || 'User'}
           userPhotoUrl={profile?.photo_url ?? null}
           allTrees={allTrees}
-          treeLimit={FREE_TREE_LIMIT}
+          treeLimit={profile?.tree_limit ?? FREE_TREE_LIMIT}
           onCollapseAll={handleCollapseAll}
           onExpandAll={expandAll}
           onClearAll={clearCanvas}
