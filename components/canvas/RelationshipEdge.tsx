@@ -8,20 +8,53 @@ import type { Relationship } from '@/types/database';
 // Must match the constants in generation-layout.ts and TreeCanvas.tsx
 const NODE_HEIGHT = 80;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// EMERALD THEME — healthy connections are green, former are warm brown/gold
+// ═══════════════════════════════════════════════════════════════════════════
+const EDGE_COLORS = {
+  // Current partner — deep emerald, thick
+  partner: '#047857',
+  // Former partner — warm brown (dead leaf)
+  partnerDivorced: '#96703a',
+  partnerSeparated: '#96703a',
+  // Deceased partner — muted gold
+  partnerDeceased: '#8a6d40',
+  // Parent-child — medium teal, thinner
+  parentChild: '#2d9272',
+  // Collapse button
+  collapseBorder: '#2d9272',
+  collapseBg: '#ecfdf5',
+  collapseText: '#047857',
+};
+
+const PARTNER_STROKE_WIDTH = 3;
+const PARTNER_FORMER_STROKE_WIDTH = 2.5;
+const CHILD_STROKE_WIDTH = 1.5;
+
 export type RelationshipEdgeData = {
   relationship: Relationship;
-  // For partner relationships: horizontal line coordinates
-  partnerPos?: { 
-    x1: number;  // Right edge of left person
-    x2: number;  // Left edge of right person
-    y: number;   // Y coordinate (vertical center of nodes)
+  partnerPos?: {
+    x1: number;
+    x2: number;
+    y: number;
   };
-  // For parent-child relationships: T-connector coordinates
   parentChildConnector?: {
-    parentsMidX: number;  // X of partnership line center (or single parent center)
-    parentsY: number;     // Y of partnership line (vertical center of parent nodes)
-    childX: number;       // X center of child node
-    childY: number;       // Y top of child node
+    parentsMidX: number;
+    parentsY: number;
+    childX: number;
+    childY: number;
+    staggerIndex?: number;
+  };
+  groupChildConnector?: {
+    parentsMidX: number;
+    parentsY: number;
+    children: { childX: number; childY: number }[];
+    staggerIndex?: number;
+  };
+  collapseToggle?: {
+    isCollapsed: boolean;
+    collapsePersonId: string;
+    onToggleCollapse: (personId: string) => void;
   };
 };
 
@@ -29,7 +62,7 @@ function RelationshipEdge({
   id,
   data,
 }: EdgeProps<RelationshipEdgeData>) {
-  const { relationship, partnerPos, parentChildConnector } = data || {};
+  const { relationship, partnerPos, parentChildConnector, groupChildConnector, collapseToggle } = data || {};
 
   if (!relationship) {
     console.warn('No relationship data for edge:', id);
@@ -48,31 +81,122 @@ function RelationshipEdge({
     }
 
     const { x1, x2, y } = partnerPos;
-    
-    // Simple horizontal line from right edge of left person to left edge of right person
     const path = `M ${x1},${y} L ${x2},${y}`;
-    
+
     const status = relationship.relationship_status;
     const isDivorced = status === 'divorced';
     const isSeparated = status === 'separated';
     const isDeceased = status === 'deceased';
     const isFormer = isDivorced || isSeparated || isDeceased;
-    
+
+    // Pick color based on status
+    let strokeColor = EDGE_COLORS.partner;
+    if (isDivorced) strokeColor = EDGE_COLORS.partnerDivorced;
+    else if (isSeparated) strokeColor = EDGE_COLORS.partnerSeparated;
+    else if (isDeceased) strokeColor = EDGE_COLORS.partnerDeceased;
+
+    // Dash pattern: divorced/separated = longer dashes, deceased = shorter
+    let dashArray: string | undefined;
+    if (isDivorced || isSeparated) dashArray = '8,4';
+    else if (isDeceased) dashArray = '4,4';
+
+    // Collapse button position: midpoint of partner line
+    const midX = (x1 + x2) / 2;
+    const btnSize = 20;
+
+    return (
+      <>
+        <BaseEdge
+          id={id}
+          path={path}
+          style={{
+            stroke: strokeColor,
+            strokeWidth: isFormer ? PARTNER_FORMER_STROKE_WIDTH : PARTNER_STROKE_WIDTH,
+            strokeDasharray: dashArray,
+            opacity: isFormer ? 0.7 : 1,
+          }}
+        />
+        {collapseToggle && (
+          <foreignObject
+            x={midX - btnSize / 2}
+            y={y - btnSize / 2}
+            width={btnSize}
+            height={btnSize}
+            style={{ overflow: 'visible' }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                collapseToggle.onToggleCollapse(collapseToggle.collapsePersonId);
+              }}
+              style={{
+                width: btnSize,
+                height: btnSize,
+                borderRadius: '50%',
+                border: `2px solid ${EDGE_COLORS.collapseBorder}`,
+                backgroundColor: collapseToggle.isCollapsed ? EDGE_COLORS.collapseBg : '#ffffff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '8px',
+                color: EDGE_COLORS.collapseText,
+                padding: 0,
+                lineHeight: 1,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                transition: 'all 150ms ease',
+              }}
+              title={collapseToggle.isCollapsed ? 'Expand branch' : 'Collapse branch'}
+            >
+              {collapseToggle.isCollapsed ? '▶' : '▼'}
+            </button>
+          </foreignObject>
+        )}
+      </>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PARENT-CHILD: Group rail connector (multiple siblings from same pair)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (type === 'parent_child' && groupChildConnector) {
+    const { parentsMidX, parentsY, children, staggerIndex = 0 } = groupChildConnector;
+    const parentsBottom = parentsY + NODE_HEIGHT / 2;
+    const topChildY = Math.min(...children.map(c => c.childY));
+    const baseRailY = (parentsBottom + topChildY) / 2;
+    // Stagger rail upward for multi-partner people so rails don't overlap
+    const STAGGER_PX = 12;
+    const maxOffset = (topChildY - parentsBottom) * 0.4;
+    const staggerOffset = Math.min(staggerIndex * STAGGER_PX, maxOffset);
+    const railY = baseRailY - staggerOffset;
+
+    const leftX = Math.min(parentsMidX, ...children.map(c => c.childX));
+    const rightX = Math.max(parentsMidX, ...children.map(c => c.childX));
+
+    // Build path: vertical drop from pair center → horizontal rail → individual drops
+    let path = `M ${parentsMidX},${parentsY} L ${parentsMidX},${railY}`;
+    // Horizontal rail
+    path += ` M ${leftX},${railY} L ${rightX},${railY}`;
+    // Individual drops from rail to each child
+    for (const child of children) {
+      path += ` M ${child.childX},${railY} L ${child.childX},${child.childY}`;
+    }
+
     return (
       <BaseEdge
         id={id}
         path={path}
         style={{
-          stroke: isFormer ? '#9ca3af' : '#3b82f6',
-          strokeWidth: 2,
-          strokeDasharray: (isDivorced || isSeparated) ? '8,4' : isDeceased ? '4,4' : undefined,
+          stroke: EDGE_COLORS.parentChild,
+          strokeWidth: CHILD_STROKE_WIDTH,
+          fill: 'none',
         }}
       />
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PARENT-CHILD: T-connector from partnership center down to child
+  // PARENT-CHILD: Single T-connector from partnership center down to child
   // ═══════════════════════════════════════════════════════════════════════════
   if (type === 'parent_child') {
     if (!parentChildConnector) {
@@ -80,26 +204,21 @@ function RelationshipEdge({
       return null;
     }
 
-    const { parentsMidX, parentsY, childX, childY } = parentChildConnector;
-    
-    // Calculate parent node bottom (parentsY is the vertical center)
+    const { parentsMidX, parentsY, childX, childY, staggerIndex = 0 } = parentChildConnector;
     const parentsBottom = parentsY + NODE_HEIGHT / 2;
-    
-    // Elbow should be halfway between parent bottom and child top
-    const dropY = (parentsBottom + childY) / 2;
-    
-    // Path: 
-    // 1. Start from partnership line center (at vertical center of parents)
-    // 2. Drop vertically to the elbow
-    // 3. Move horizontally to above the child
-    // 4. Drop vertically to child's top
+    const baseDropY = (parentsBottom + childY) / 2;
+    // Stagger L-shaped connectors upward (toward parents) so they don't overlap
+    // with each other or with group rail connectors below
+    const STAGGER_PX = 12;
+    const maxOffset = (childY - parentsBottom) * 0.4; // never use more than 40% of the gap
+    const staggerOffset = Math.min(staggerIndex * STAGGER_PX, maxOffset);
+    const dropY = baseDropY - staggerOffset;
+
     let path: string;
-    
+
     if (Math.abs(parentsMidX - childX) < 2) {
-      // Child is directly below parents - simple vertical line
       path = `M ${parentsMidX},${parentsY} L ${childX},${childY}`;
     } else {
-      // Child is offset - need T-shape
       path = `
         M ${parentsMidX},${parentsY}
         L ${parentsMidX},${dropY}
@@ -107,15 +226,14 @@ function RelationshipEdge({
         L ${childX},${childY}
       `.replace(/\s+/g, ' ').trim();
     }
-    
-    // Adoption is indicated by heart icon on the child node, not by line style
+
     return (
       <BaseEdge
         id={id}
         path={path}
         style={{
-          stroke: '#6b7280',
-          strokeWidth: 2,
+          stroke: EDGE_COLORS.parentChild,
+          strokeWidth: CHILD_STROKE_WIDTH,
           fill: 'none',
         }}
       />

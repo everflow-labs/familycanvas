@@ -12,6 +12,8 @@ import ReactFlow, {
   EdgeTypes,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -41,6 +43,9 @@ type TreeCanvasProps = {
   quickAddHandlers?: QuickAddHandlers;
   collapsedIds?: Set<string>;
   onToggleCollapse?: (pairKey: string) => void;
+  readOnly?: boolean;
+  focusPersonId?: string | null;
+  selectedPersonId?: string | null;
 };
 
 // Collapse toggle node - small circle at T-connector junction
@@ -59,32 +64,48 @@ function CollapseToggleNodeComponent({ data }: { data: CollapseToggleData }) {
       onMouseDown={(e) => {
         e.stopPropagation();
       }}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+      }}
       style={{
-        width: TOGGLE_SIZE,
-        height: TOGGLE_SIZE,
-        borderRadius: '50%',
-        backgroundColor: 'white',
-        border: '2px solid #9ca3af',
+        // Invisible touch area — 40x40 centered around the 20px visible circle
+        width: 40,
+        height: 40,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        fontSize: '8px',
-        lineHeight: 1,
-        color: '#6b7280',
         pointerEvents: 'all',
-      }}
-      onMouseOver={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = '#3b82f6';
-        (e.currentTarget as HTMLDivElement).style.color = '#3b82f6';
-      }}
-      onMouseOut={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = '#9ca3af';
-        (e.currentTarget as HTMLDivElement).style.color = '#6b7280';
+        margin: '-10px', // offset to keep visual position the same
       }}
       title={data.isCollapsed ? 'Expand branch' : 'Collapse branch'}
     >
-      {data.isCollapsed ? '▶' : '▼'}
+      <div
+        style={{
+          width: TOGGLE_SIZE,
+          height: TOGGLE_SIZE,
+          borderRadius: '50%',
+          backgroundColor: 'white',
+          border: '2px solid #9ca3af',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '8px',
+          lineHeight: 1,
+          color: '#6b7280',
+          transition: 'border-color 0.15s, color 0.15s',
+        }}
+        onMouseOver={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#3b82f6';
+          (e.currentTarget as HTMLDivElement).style.color = '#3b82f6';
+        }}
+        onMouseOut={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#9ca3af';
+          (e.currentTarget as HTMLDivElement).style.color = '#6b7280';
+        }}
+      >
+        {data.isCollapsed ? '▶' : '▼'}
+      </div>
     </div>
   );
 }
@@ -98,13 +119,45 @@ const edgeTypes: EdgeTypes = {
   relationship: RelationshipEdge,
 };
 
-export default function TreeCanvas({
+// Stable empty set to avoid infinite re-render when collapsedIds prop is omitted
+const EMPTY_SET = new Set<string>();
+
+// Internal component to handle focusing/panning to a specific node
+// Must be inside ReactFlow to use useReactFlow hook
+function FocusHandler({ personId, nodes }: { personId?: string | null; nodes: Node[] }) {
+  const { setCenter } = useReactFlow();
+
+  useEffect(() => {
+    if (!personId) return;
+
+    const node = nodes.find((n) => n.id === personId);
+    if (!node) return;
+
+    // Center viewport on the node (with a small delay to let layout settle)
+    const timer = setTimeout(() => {
+      setCenter(
+        node.position.x + 60, // center of node (NODE_WIDTH/2)
+        node.position.y + 50, // center of node (NODE_HEIGHT/2)
+        { zoom: 1, duration: 400 }
+      );
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [personId, nodes, setCenter]);
+
+  return null;
+}
+
+function TreeCanvasInner({
   people,
   relationships,
   onPersonSelect,
   quickAddHandlers,
-  collapsedIds = new Set(),
+  collapsedIds = EMPTY_SET,
   onToggleCollapse,
+  readOnly = false,
+  focusPersonId,
+  selectedPersonId,
 }: TreeCanvasProps) {
   const handlePersonClick = useCallback(
     (personId: string) => {
@@ -218,8 +271,8 @@ export default function TreeCanvas({
         position: { x: pos.x, y: pos.y },
         data: {
           person,
-          onClick: handlePersonClick,
-          quickAdd: quickAddHandlers
+          onClick: readOnly ? undefined : handlePersonClick,
+          quickAdd: (!readOnly && quickAddHandlers)
             ? {
                 ...quickAddInfo,
                 onAddChild: () => quickAddHandlers.onAddChild(person.id),
@@ -276,7 +329,8 @@ export default function TreeCanvas({
       }
     }
 
-    // Add parent-child edges with T-connectors
+    // Add parent-child edges: group siblings by parent pair for shared rail connectors
+    // Step A: Collect children → parents mapping
     const childToParents = new Map<string, string[]>();
     const childToRel = new Map<string, Relationship>();
 
@@ -289,70 +343,157 @@ export default function TreeCanvas({
       }
     }
 
+    // Step B: Group children by their parent pair key
+    // Key = sorted parent IDs (or single parent ID for solo-parent children)
+    const pairToChildren = new Map<string, { childId: string; rel: Relationship }[]>();
+
     for (const [childId, parentIds] of childToParents.entries()) {
-      const childPos = positionMap.get(childId);
-      const rel = childToRel.get(childId);
+      const key = parentIds.length === 2
+        ? [...parentIds].sort().join('|')
+        : parentIds[0];
+      if (!pairToChildren.has(key)) pairToChildren.set(key, []);
+      pairToChildren.get(key)!.push({ childId, rel: childToRel.get(childId)! });
+    }
 
-      if (!childPos || !rel) continue;
+    // Step C: Build a row→sorted centerX lookup for adjusting parentsMidX
+    // when other partner nodes sit between the two parents of a pair.
+    const rowNodeCenters = new Map<number, number[]>();
+    for (const pos of positions) {
+      const edges = getNodeEdges(pos);
+      const row = pos.y;
+      if (!rowNodeCenters.has(row)) rowNodeCenters.set(row, []);
+      rowNodeCenters.get(row)!.push(edges.centerX);
+    }
+    for (const arr of rowNodeCenters.values()) arr.sort((a, b) => a - b);
 
-      const childEdges = getNodeEdges(childPos);
+    // Track stagger index per shared parent so L-shaped single-child connectors
+    // from the same multi-partner person don't overlap. Keyed by the person ID
+    // that appears in multiple parent pairs (the multi-partner person).
+    const staggerCountByPerson = new Map<string, number>();
 
-      if (parentIds.length === 2) {
-        const p1Pos = positionMap.get(parentIds[0]);
-        const p2Pos = positionMap.get(parentIds[1]);
-
-        if (p1Pos && p2Pos) {
-          const p1Edges = getNodeEdges(p1Pos);
-          const p2Edges = getNodeEdges(p2Pos);
-
-          const parentsMidX = (p1Edges.centerX + p2Edges.centerX) / 2;
-          const partnerLineY = p1Edges.centerY;
-
-          edges.push({
-            id: `pc-${rel.id}`,
-            source: parentIds[0],
-            target: childId,
-            type: 'relationship',
-            data: {
-              relationship: rel,
-              parentChildConnector: {
-                parentsMidX,
-                parentsY: partnerLineY,
-                childX: childEdges.centerX,
-                childY: childEdges.top,
-              },
-            },
-            animated: false,
-          });
-        }
-      } else if (parentIds.length === 1) {
-        const parentPos = positionMap.get(parentIds[0]);
-
-        if (parentPos) {
-          const parentEdges = getNodeEdges(parentPos);
-
-          edges.push({
-            id: `pc-${rel.id}`,
-            source: parentIds[0],
-            target: childId,
-            type: 'relationship',
-            data: {
-              relationship: rel,
-              parentChildConnector: {
-                parentsMidX: parentEdges.centerX,
-                parentsY: parentEdges.bottom,
-                childX: childEdges.centerX,
-                childY: childEdges.top,
-              },
-            },
-            animated: false,
-          });
-        }
+    // Pre-compute which person IDs appear in multiple parent pairs
+    const pairCountByPerson = new Map<string, number>();
+    for (const pairKey of pairToChildren.keys()) {
+      for (const pid of pairKey.split('|')) {
+        pairCountByPerson.set(pid, (pairCountByPerson.get(pid) || 0) + 1);
       }
     }
 
-    // Step 3: Create collapse toggle nodes — one per parent-partner pair that has children
+    // Step D: Create edges per parent pair
+    for (const [pairKey, children] of pairToChildren.entries()) {
+      const parentIds = pairKey.split('|');
+      const isTwoParents = parentIds.length === 2;
+
+      // Calculate the shared anchor point (pair center or solo parent bottom)
+      let parentsMidX: number;
+      let parentsY: number;
+
+      if (isTwoParents) {
+        const p1Pos = positionMap.get(parentIds[0]);
+        const p2Pos = positionMap.get(parentIds[1]);
+        if (!p1Pos || !p2Pos) continue;
+        const p1Edges = getNodeEdges(p1Pos);
+        const p2Edges = getNodeEdges(p2Pos);
+        parentsY = p1Edges.centerY;
+
+        // Default midpoint between the two parents
+        const rawMidX = (p1Edges.centerX + p2Edges.centerX) / 2;
+
+        // Check if any other node sits between the two parents in the same row.
+        // If so, use the midpoint between the farther parent and the nearest
+        // intervening node toward the other parent (keeps stem in a clear gap).
+        const leftX = Math.min(p1Edges.centerX, p2Edges.centerX);
+        const rightX = Math.max(p1Edges.centerX, p2Edges.centerX);
+        const rowCenters = rowNodeCenters.get(p1Pos.y) || [];
+        const intervening = rowCenters.filter(cx => cx > leftX + 1 && cx < rightX - 1);
+
+        if (intervening.length > 0) {
+          // For left-side partner: nearest intervening node toward right parent
+          // For right-side partner: nearest intervening node toward left parent
+          const leftParentX = Math.min(p1Edges.centerX, p2Edges.centerX);
+          const nearestFromLeft = Math.min(...intervening); // closest node to the left parent
+          parentsMidX = (leftParentX + nearestFromLeft) / 2;
+        } else {
+          parentsMidX = rawMidX;
+        }
+      } else {
+        const parentPos = positionMap.get(parentIds[0]);
+        if (!parentPos) continue;
+        const parentEdges = getNodeEdges(parentPos);
+        parentsMidX = parentEdges.centerX;
+        parentsY = parentEdges.bottom;
+      }
+
+      // Get all children's positions
+      const validChildren: { childId: string; rel: Relationship; childX: number; childY: number }[] = [];
+      for (const { childId, rel } of children) {
+        const childPos = positionMap.get(childId);
+        if (!childPos) continue;
+        const childEdges = getNodeEdges(childPos);
+        validChildren.push({ childId, rel, childX: childEdges.centerX, childY: childEdges.top });
+      }
+
+      if (validChildren.length === 0) continue;
+
+      // Use first child's rel as the "representative" edge relationship
+      const firstRel = validChildren[0].rel;
+
+      // Compute stagger index for L-shaped / offset connectors from multi-partner people
+      let staggerIndex = 0;
+      if (isTwoParents) {
+        const sharedParent = parentIds.find(pid => (pairCountByPerson.get(pid) || 0) > 1);
+        if (sharedParent) {
+          staggerIndex = staggerCountByPerson.get(sharedParent) || 0;
+          staggerCountByPerson.set(sharedParent, staggerIndex + 1);
+        }
+      }
+
+      if (validChildren.length === 1) {
+        // Single child: simple T-connector (no rail needed)
+        const isLShaped = Math.abs(parentsMidX - validChildren[0].childX) >= 2;
+
+        edges.push({
+          id: `pc-${firstRel.id}`,
+          source: parentIds[0],
+          target: validChildren[0].childId,
+          type: 'relationship',
+          data: {
+            relationship: firstRel,
+            parentChildConnector: {
+              parentsMidX,
+              parentsY,
+              childX: validChildren[0].childX,
+              childY: validChildren[0].childY,
+              staggerIndex,
+            },
+          },
+          animated: false,
+        });
+      } else {
+        // Multiple children: group rail connector
+        edges.push({
+          id: `pc-group-${pairKey}`,
+          source: parentIds[0],
+          target: validChildren[0].childId,
+          type: 'relationship',
+          data: {
+            relationship: firstRel,
+            groupChildConnector: {
+              parentsMidX,
+              parentsY,
+              children: validChildren.map(c => ({ childX: c.childX, childY: c.childY })),
+              staggerIndex,
+            },
+          },
+          animated: false,
+        });
+      }
+    }
+
+    // Step 3: Create collapse toggle nodes (skip in readOnly mode)
     const collapseNodes: Node[] = [];
+
+    if (!readOnly) {
     const handledPairs = new Set<string>();
 
     // Helper: make a sorted pair key for dedup
@@ -395,7 +536,19 @@ export default function TreeCanvas({
           const pEdges = getNodeEdges(personPos);
           const partnerNodeEdges = getNodeEdges(partnerPos);
 
-          const jx = (pEdges.centerX + partnerNodeEdges.centerX) / 2;
+          // Use adjusted midpoint that avoids intervening partner nodes (same logic as edge stems)
+          const leftX = Math.min(pEdges.centerX, partnerNodeEdges.centerX);
+          const rightX = Math.max(pEdges.centerX, partnerNodeEdges.centerX);
+          const rowCenters = rowNodeCenters.get(personPos.y) || [];
+          const intervening = rowCenters.filter(cx => cx > leftX + 1 && cx < rightX - 1);
+
+          let jx: number;
+          if (intervening.length > 0) {
+            const nearestFromLeft = Math.min(...intervening);
+            jx = (leftX + nearestFromLeft) / 2;
+          } else {
+            jx = (pEdges.centerX + partnerNodeEdges.centerX) / 2;
+          }
           const jy = pEdges.centerY;
 
           const isCollapsed = collapsedIds.has(pairKey);
@@ -461,8 +614,10 @@ export default function TreeCanvas({
       }
     }
 
+    } // end if (!readOnly)
+
     return { nodes: [...personNodes, ...collapseNodes], edges };
-  }, [people, relationships, handlePersonClick, getQuickAddInfo, quickAddHandlers, collapsedIds, onToggleCollapse]);
+  }, [people, relationships, handlePersonClick, getQuickAddInfo, quickAddHandlers, collapsedIds, onToggleCollapse, readOnly]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -473,13 +628,24 @@ export default function TreeCanvas({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  // Sync node selection when selectedPersonId changes externally (e.g. search, panel navigation)
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        selected: selectedPersonId ? node.id === selectedPersonId : false,
+      }))
+    );
+  }, [selectedPersonId, setNodes]);
+
   const handlePaneClick = useCallback(() => {
+    if (readOnly) return;
     if (onPersonSelect) onPersonSelect(null);
     setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
-  }, [onPersonSelect, setNodes]);
+  }, [onPersonSelect, setNodes, readOnly]);
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" style={{ touchAction: 'none' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -495,9 +661,12 @@ export default function TreeCanvas({
         connectOnClick={false}
         nodesConnectable={false}
         nodesDraggable={false}
-        elementsSelectable={true}
+        elementsSelectable={!readOnly}
         panOnDrag={true}
         zoomOnScroll={true}
+        zoomOnPinch={true}
+        panOnScroll={false}
+        preventScrolling={true}
       >
         <Background color="#f0f0f0" gap={16} />
         <Controls />
@@ -512,7 +681,17 @@ export default function TreeCanvas({
           }}
           maskColor="rgb(240, 240, 240, 0.6)"
         />
+        <FocusHandler personId={focusPersonId} nodes={nodes} />
       </ReactFlow>
     </div>
+  );
+}
+
+// Wrap in ReactFlowProvider so useReactFlow works inside FocusHandler
+export default function TreeCanvas(props: TreeCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <TreeCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }

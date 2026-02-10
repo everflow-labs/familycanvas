@@ -205,7 +205,9 @@ export function getVisiblePeople(
   collapsedPairKeys: Set<string>
 ): Person[] {
   const hidden = new Set<UUID>();
+  const allPeopleIds = new Set(people.map(p => p.id));
 
+  // Step 1: Hide direct children and their descendants for each collapsed pair
   for (const pairKey of collapsedPairKeys) {
     const parts = pairKey.split('_');
     let childrenToHide: UUID[] = [];
@@ -221,6 +223,35 @@ export function getVisiblePeople(
     for (const childId of childrenToHide) {
       hidden.add(childId);
       for (const d of getAllDescendants(childId, graph)) hidden.add(d);
+    }
+  }
+
+  // Step 2: Also hide partners of hidden people (they'd float as orphan roots).
+  // Iterate until stable since hiding a partner may expose more descendants/partners.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const hiddenId of hidden) {
+      const partners = graph.partnersByPerson.get(hiddenId);
+      if (!partners) continue;
+      for (const partnerId of partners) {
+        if (hidden.has(partnerId) || !allPeopleIds.has(partnerId)) continue;
+        // Only hide this partner if ALL their connections lead to hidden people.
+        // Check: does this partner have any visible parent? If so, they're anchored elsewhere.
+        const parentLinks = graph.parentsByChild.get(partnerId) ?? [];
+        const hasVisibleParent = parentLinks.some(link => !hidden.has(link.parentId) && allPeopleIds.has(link.parentId));
+        if (hasVisibleParent) continue;
+
+        // Partner is only connected through hidden people — hide them too
+        hidden.add(partnerId);
+        // Also hide their descendants
+        for (const d of getAllDescendants(partnerId, graph)) {
+          if (!hidden.has(d)) {
+            hidden.add(d);
+          }
+        }
+        changed = true;
+      }
     }
   }
 

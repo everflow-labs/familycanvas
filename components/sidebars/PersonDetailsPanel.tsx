@@ -317,7 +317,7 @@ export default function PersonDetailsPanel({
   const PersonLink = ({ p, className = '' }: { p: Person; className?: string }) => (
     <button
       onClick={() => onSelectPerson(p.id)}
-      className={`text-blue-600 hover:text-blue-800 hover:underline text-left ${className}`}
+      className={`text-emerald-600 hover:text-emerald-800 hover:underline text-left ${className}`}
     >
       {p.name}
     </button>
@@ -335,17 +335,17 @@ export default function PersonDetailsPanel({
     onClick?: () => void;
   }) => {
     const colors: Record<string, string> = {
-      current: 'bg-green-100 text-green-800',
-      divorced: 'bg-orange-100 text-orange-800',
-      separated: 'bg-yellow-100 text-yellow-800',
-      widowed: 'bg-gray-200 text-gray-700',
+      current: 'bg-emerald-100 text-emerald-800',
+      divorced: 'bg-amber-100 text-amber-800',
+      separated: 'bg-amber-50 text-amber-700',
+      widowed: 'bg-stone-200 text-stone-700',
     };
 
     if (isClickable && onClick) {
       return (
         <button
           onClick={onClick}
-          className={`text-xs px-2 py-0.5 rounded-full ${colors[label] || 'bg-gray-100 text-gray-600'} hover:ring-2 hover:ring-blue-300 cursor-pointer inline-flex items-center gap-1`}
+          className={`text-xs px-2 py-0.5 rounded-full ${colors[label] || 'bg-stone-100 text-stone-600'} hover:ring-2 hover:ring-emerald-300 cursor-pointer inline-flex items-center gap-1`}
           title="Click to change status"
         >
           {label}
@@ -355,7 +355,7 @@ export default function PersonDetailsPanel({
     }
 
     return (
-      <span className={`text-xs px-2 py-0.5 rounded-full ${colors[label] || 'bg-gray-100 text-gray-600'}`}>
+      <span className={`text-xs px-2 py-0.5 rounded-full ${colors[label] || 'bg-stone-100 text-stone-600'}`}>
         {label}
       </span>
     );
@@ -386,7 +386,7 @@ export default function PersonDetailsPanel({
             onClick={() => handleStatusChange(status)}
             className={`text-xs px-2.5 py-1 rounded-full border capitalize transition-colors ${
               status === currentStatus
-                ? 'bg-blue-100 text-blue-800 border-blue-300 font-medium'
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-medium'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -449,9 +449,9 @@ export default function PersonDetailsPanel({
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="w-80 border-l bg-white flex flex-col h-full">
+    <div className="fc-sidebar fixed inset-0 z-40 bg-white sm:static sm:inset-auto sm:z-auto sm:w-80 flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-start justify-between p-6 border-b">
+      <div className="flex items-start justify-between p-6 border-b flex-shrink-0">
         <h2 className="text-lg font-semibold">Person Details</h2>
         <button
           className="text-gray-400 hover:text-gray-600"
@@ -462,7 +462,7 @@ export default function PersonDetailsPanel({
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 pb-24 sm:pb-6 space-y-6">
         {/* Photo & Basic Info */}
         <div className="flex items-start gap-4">
           {photoUrl ? (
@@ -512,7 +512,7 @@ export default function PersonDetailsPanel({
             </span>
           )}
           {person.location && (
-            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+            <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800">
               📍 {person.location}
             </span>
           )}
@@ -530,7 +530,7 @@ export default function PersonDetailsPanel({
                   <PersonLink p={parent} />
                   <button
                     onClick={() => onChangeParent(parent.id)}
-                    className="text-xs text-gray-400 hover:text-blue-600 px-2 py-0.5 rounded hover:bg-blue-50"
+                    className="text-xs text-gray-400 hover:text-emerald-600 px-2 py-0.5 rounded hover:bg-emerald-50"
                   >
                     Change
                   </button>
@@ -542,7 +542,7 @@ export default function PersonDetailsPanel({
                 <button
                   key={candidate.id}
                   onClick={() => onLinkParent(candidate.id)}
-                  className="text-sm text-blue-600 hover:text-blue-800 block"
+                  className="text-sm text-emerald-600 hover:text-emerald-800 block"
                 >
                   + Add {candidate.name} as parent
                 </button>
@@ -552,7 +552,7 @@ export default function PersonDetailsPanel({
               {canAddParent && parents.length === 0 && (
                 <button
                   onClick={onAddParent}
-                  className="text-sm text-blue-600 hover:text-blue-800 block"
+                  className="text-sm text-emerald-600 hover:text-emerald-800 block"
                 >
                   + Add parent
                 </button>
@@ -571,7 +571,7 @@ export default function PersonDetailsPanel({
           ) : canAddPartner ? (
             <button
               onClick={onAddPartner}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-emerald-600 hover:text-emerald-800"
             >
               + Add Partner
             </button>
@@ -598,7 +598,7 @@ export default function PersonDetailsPanel({
         {canAddPartner && previousPartners.length > 0 && (
           <button
             onClick={onAddPartner}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-emerald-600 hover:text-emerald-800"
           >
             + Add New Partner
           </button>
@@ -640,7 +640,7 @@ export default function PersonDetailsPanel({
             {canAddSibling && (
               <button
                 onClick={onAddSibling}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                className="mt-2 text-sm text-emerald-600 hover:text-emerald-800"
               >
                 + Add Sibling
               </button>

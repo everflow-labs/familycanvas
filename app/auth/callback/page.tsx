@@ -1,3 +1,4 @@
+// app/auth/callback/page.tsx
 'use client';
 
 import { Suspense, useEffect } from 'react';
@@ -24,13 +25,27 @@ function AuthCallbackHandler() {
     run();
   }, [router, searchParams]);
 
-  return <div className="text-sm text-gray-600">Signing you in…</div>;
+  return (
+    <div className="flex flex-col items-center gap-3">
+      {/* Spinner */}
+      <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin" />
+      <div className="text-sm text-white/50" style={{ fontFamily: 'var(--font-body)' }}>
+        Signing you in…
+      </div>
+    </div>
+  );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Suspense fallback={<div className="text-sm text-gray-600">Loading…</div>}>
+    <div className="min-h-screen fc-bg-dark flex items-center justify-center">
+      <Suspense
+        fallback={
+          <div className="text-sm text-white/40" style={{ fontFamily: 'var(--font-body)' }}>
+            Loading…
+          </div>
+        }
+      >
         <AuthCallbackHandler />
       </Suspense>
     </div>

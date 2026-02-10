@@ -28,7 +28,7 @@ const HALF_CELL = 80;
 const ROW_HEIGHT = 180;
 const CANVAS_MARGIN = 300;
 const MIN_SUBTREE_GAP = 0; // Subtrees can touch (bounds already include node width)
-const MIN_GROUP_GAP = 2;  // Minimum gap between child groups from different partners (in half-cells)
+const MIN_GROUP_GAP = 1;  // Minimum gap between child groups from different partners (in half-cells)
 
 export type LayoutPosition = {
   id: UUID;
@@ -217,6 +217,29 @@ function buildNode(
     }
   }
 
+  // ── Recalculate pairCenters based on spatial adjacency ──────────────
+  // Default pairCenter = midpoint(partner, person) works for 1 partner but
+  // breaks with 3+ partners: the midpoint lands on another partner's node.
+  // Fix: use midpoint(partner, nearest neighbor toward person) instead.
+  if (partnerEntries.length > 1) {
+    const allPositions = [0, ...partnerEntries.map(e => e.partnerHalfCol)].sort((a, b) => a - b);
+
+    for (const entry of partnerEntries) {
+      const idx = allPositions.indexOf(entry.partnerHalfCol);
+      let neighborTowardPerson: number;
+
+      if (entry.partnerHalfCol < 0) {
+        // Left-side partner: neighbor toward person is the next position to the right
+        neighborTowardPerson = allPositions[idx + 1] ?? 0;
+      } else {
+        // Right-side partner (current): neighbor toward person is the next position to the left
+        neighborTowardPerson = allPositions[idx - 1] ?? 0;
+      }
+
+      entry.pairCenter = (entry.partnerHalfCol + neighborTowardPerson) / 2;
+    }
+  }
+
   // ── Group children by parent pair ─────────────────────────────────
   const myChildIds = graph.childrenByParent.get(person.id) || new Set<UUID>();
   const assignedChildren = new Set<UUID>();
@@ -368,7 +391,7 @@ type PositionedGroup = {
 function getChildGroups(node: LayoutNode): ChildGroup[] {
   const groups: ChildGroup[] = [];
 
-  // Ex partner groups (leftmost ex first — they're already ordered in partners array)
+  // Ex partner groups (in array order — will be sorted spatially below)
   const exEntries = node.partners.filter(e => e.status !== 'current');
   for (const entry of exEntries) {
     if (entry.children.length > 0) {
@@ -395,6 +418,11 @@ function getChildGroups(node: LayoutNode): ChildGroup[] {
       children: currentEntry.children,
     });
   }
+
+  // Sort all groups by targetCenter (left-to-right) so overlap resolution works correctly.
+  // Without this, exes in creation order (first ex at -2, second at -4) would be
+  // right-to-left, causing the resolver to massively over-push children.
+  groups.sort((a, b) => a.targetCenter - b.targetCenter);
 
   return groups;
 }
