@@ -145,7 +145,7 @@ const MONTHS = [
 const currentYear = new Date().getFullYear();
 const YEARS = [
   { value: '', label: 'Year' },
-  ...Array.from({ length: currentYear - 1899 }, (_, i) => {
+  ...Array.from({ length: currentYear - 1799 }, (_, i) => {
     const year = currentYear - i;
     return { value: year.toString(), label: year.toString() };
   }),
