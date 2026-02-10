@@ -36,8 +36,7 @@ export default function SignupPage() {
       return;
     }
 
-    // Email verification required — send to check-email page
-    router.push('/check-email');
+    router.push('/canvas');
   };
 
   return (
