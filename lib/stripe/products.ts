@@ -23,7 +23,7 @@ export type ProductConfig = {
 
 export const PRODUCTS: ProductConfig[] = [
   {
-    priceId: 'price_1SzKonI2GFCyAoY4VyT2jC4X',
+    priceId: 'price_1SzKUeI2GFCyAoY42bSupaeY',
     productType: 'leaves_50',
     name: '+50 Leaves',
     description: 'Add 50 more people to your trees',
@@ -32,7 +32,7 @@ export const PRODUCTS: ProductConfig[] = [
     treesAdded: 0,
   },
   {
-    priceId: 'price_1SzKpbI2GFCyAoY4cgdC6hx1',
+    priceId: 'price_1SzKV7I2GFCyAoY4YbYx22xd',
     productType: 'leaves_100',
     name: '+100 Leaves',
     description: 'Add 100 more people to your trees',
@@ -41,7 +41,7 @@ export const PRODUCTS: ProductConfig[] = [
     treesAdded: 0,
   },
   {
-    priceId: 'price_1SzKqGI2GFCyAoY4n2CputLU',
+    priceId: 'price_1SzKW2I2GFCyAoY43hkMOpZA',
     productType: 'starter_pack',
     name: 'Starter Pack',
     description: '+1 Canvas & +100 Leaves',
@@ -51,7 +51,7 @@ export const PRODUCTS: ProductConfig[] = [
     badge: 'SAVE $1',
   },
   {
-    priceId: 'price_1SzKr1I2GFCyAoY4TI2IsRZ9',
+    priceId: 'price_1SzKXAI2GFCyAoY4wZIM7NWB',
     productType: 'family_pack',
     name: 'Family Pack',
     description: '+3 Canvases & +200 Leaves',
