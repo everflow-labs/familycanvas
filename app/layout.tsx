@@ -1,8 +1,12 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { WebsiteJsonLd, WebAppJsonLd } from "@/components/seo/JsonLd";
+import { siteMetadata } from "./seo-metadata";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,10 +18,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "FamilyCanvas",
-  description: "Map your family in minutes",
-};
+export const metadata: Metadata = siteMetadata;
 
 export default function RootLayout({
   children,
@@ -27,7 +28,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <WebsiteJsonLd />
+        <WebAppJsonLd />
         <AuthProvider>{children}</AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

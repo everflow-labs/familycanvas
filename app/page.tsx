@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import Logo from '@/components/ui/Logo';
+import { FAQJsonLd } from '@/components/seo/JsonLd';
 import dynamic from 'next/dynamic';
 
 const ParticleHero = dynamic(() => import('@/components/landing/ParticleHero'), {
@@ -80,6 +81,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen fc-bg-dark text-white overflow-x-hidden" style={{ fontFamily: 'var(--font-body)' }}>
+      <FAQJsonLd />
       {/* ===== NAV ===== */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -326,8 +328,9 @@ export default function LandingPage() {
             <Logo size="xs" />
             FamilyCanvas
           </div>
-          <div className="text-xs text-white/30">
-            © {new Date().getFullYear()} FamilyCanvas. All rights reserved.
+          <div className="flex items-center gap-4 text-xs text-white/30">
+            <Link href="/support" className="hover:text-white/50 transition-colors">Help & Support</Link>
+            <span>© {new Date().getFullYear()} FamilyCanvas. All rights reserved.</span>
           </div>
         </div>
       </footer>
