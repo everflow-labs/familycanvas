@@ -70,6 +70,85 @@ type PartnerInfo = {
 };
 
 // Format birth date for display based on precision
+function generateGoogleCalendarUrl(name: string, birthDate: string): string {
+  const parts = birthDate.split('-');
+  const [, month, day] = parts;
+
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  let nextBirthday = new Date(thisYear, parseInt(month) - 1, parseInt(day));
+  if (nextBirthday < now) {
+    nextBirthday = new Date(thisYear + 1, parseInt(month) - 1, parseInt(day));
+  }
+
+  const year = nextBirthday.getFullYear();
+  const mm = month.padStart(2, '0');
+  const dd = day.padStart(2, '0');
+  const dateStr = `${year}${mm}${dd}`;
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `🎂 ${name}'s Birthday`,
+    dates: `${dateStr}/${dateStr}`,
+    details: 'Birthday reminder from FamilyCanvas',
+    recur: 'RRULE:FREQ=YEARLY',
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function generateBirthdayICS(name: string, birthDate: string): void {
+  const parts = birthDate.split('-');
+  if (parts.length !== 3) return;
+
+  const [, month, day] = parts;
+  // If only year was entered (month=01, day=01 as default), skip
+  if (month === '01' && day === '01') return;
+
+  // Use next occurrence of the birthday
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  let nextBirthday = new Date(thisYear, parseInt(month) - 1, parseInt(day));
+  if (nextBirthday < now) {
+    nextBirthday = new Date(thisYear + 1, parseInt(month) - 1, parseInt(day));
+  }
+
+  const year = nextBirthday.getFullYear();
+  const mm = month.padStart(2, '0');
+  const dd = day.padStart(2, '0');
+  const dateStr = `${year}${mm}${dd}`;
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//FamilyCanvas//EN',
+    'BEGIN:VEVENT',
+    `DTSTART;VALUE=DATE:${dateStr}`,
+    `DTEND;VALUE=DATE:${dateStr}`,
+    `SUMMARY:🎂 ${name}'s Birthday`,
+    `DESCRIPTION:Birthday reminder from FamilyCanvas`,
+    'RRULE:FREQ=YEARLY',
+    `UID:${Date.now()}@familycanvas.app`,
+    'BEGIN:VALARM',
+    'TRIGGER:-P1D',
+    'ACTION:DISPLAY',
+    `DESCRIPTION:${name}'s birthday is tomorrow!`,
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name.replace(/\s+/g, '_')}_birthday.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function formatBirthDate(dateStr: string): string {
   if (!dateStr) return '';
   
@@ -487,8 +566,58 @@ export default function PersonDetailsPanel({
               <div className="text-gray-600">{person.native_script_name}</div>
             )}
             {person.birth_date && !person.birth_date_unknown && (
-              <div className="text-sm text-gray-500 mt-1">
-                Born {formatBirthDate(person.birth_date)}
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-gray-500">
+                  Born {formatBirthDate(person.birth_date)}
+                </span>
+                {(() => {
+                  const parts = person.birth_date.split('-');
+                  // Only disable for year-only entries (month=01 and day=01 are both defaults)
+                  const hasFullDate = parts.length === 3 && !(parts[1] === '01' && parts[2] === '01');
+                  return (
+                    <div className="relative group">
+                      <button
+                        disabled={!hasFullDate}
+                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs transition-colors ${
+                          hasFullDate
+                            ? 'text-emerald-600 hover:bg-emerald-50 cursor-pointer'
+                            : 'text-gray-300 cursor-not-allowed'
+                        }`}
+                        title={hasFullDate ? 'Add birthday reminder to calendar' : 'Add full birth date (including day) to enable calendar reminder'}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                        </svg>
+                        Add to calendar
+                      </button>
+                      {/* Dropdown — shown on hover/focus when active */}
+                      {hasFullDate && (
+                        <div className="invisible group-hover:visible group-focus-within:visible absolute left-0 top-full mt-1 z-20 w-44 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                          <a
+                            href={generateGoogleCalendarUrl(person.name, person.birth_date!)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            <svg className="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19.5 22h-15A2.5 2.5 0 0 1 2 19.5v-15A2.5 2.5 0 0 1 4.5 2H8v2H4.5a.5.5 0 0 0-.5.5v15a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5V16h2v3.5a2.5 2.5 0 0 1-2.5 2.5zM16 2h6v6h-2V4.4l-8.3 8.3-1.4-1.4L18.6 3H16V2z" />
+                            </svg>
+                            Google Calendar
+                          </a>
+                          <button
+                            onClick={() => person.birth_date && generateBirthdayICS(person.name, person.birth_date)}
+                            className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 w-full text-left"
+                          >
+                            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            Download .ics file
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {person.is_deceased && (

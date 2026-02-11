@@ -1,3 +1,4 @@
+// components/auth/AuthProvider.tsx
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -11,6 +12,7 @@ type AuthContextValue = {
   signInWithPassword: (email: string, password: string) => Promise<{ error?: string }>;
   signUpWithPassword: (email: string, password: string, fullName?: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
+  signInWithGoogleIdToken: (idToken: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 };
 
@@ -65,11 +67,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return error ? { error: error.message } : {};
       },
+      // Legacy OAuth redirect (still works as fallback)
       signInWithGoogle: async () => {
         const redirectTo = `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo },
+        });
+        return error ? { error: error.message } : {};
+      },
+      // New: Direct Google ID token sign-in (bypasses Supabase redirect)
+      signInWithGoogleIdToken: async (idToken: string) => {
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
         });
         return error ? { error: error.message } : {};
       },
