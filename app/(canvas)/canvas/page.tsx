@@ -475,7 +475,7 @@ export default function CanvasPage() {
                         </svg>
                       </div>
                       <div className="text-center">
-                        <div className="font-medium text-gray-900">Start with a grandparent</div>
+                        <div className="font-medium text-gray-900">Start with a grandparent or great-grandparent</div>
                         <div className="text-xs text-gray-500 mt-1">
                           Build downward through the generations
                         </div>
@@ -520,7 +520,7 @@ export default function CanvasPage() {
                         <svg className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
-                        You can grow the tree upward (add parents) from the topmost generation
+                        You can add parents above the topmost person, but only in one family line direction
                       </li>
                     </ul>
                   </div>
