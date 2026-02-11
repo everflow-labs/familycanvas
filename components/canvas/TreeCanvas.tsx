@@ -1,7 +1,7 @@
 // components/canvas/TreeCanvas.tsx
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -148,6 +148,49 @@ function FocusHandler({ personId, nodes }: { personId?: string | null; nodes: No
   return null;
 }
 
+// Adjusts viewport after collapse/expand actions
+function CollapseViewHandler({
+  actionRef,
+  nodes,
+}: {
+  actionRef: React.RefObject<{ pairKey: string; action: 'collapse' | 'expand' } | null>;
+  nodes: Node[];
+}) {
+  const { setCenter, fitView } = useReactFlow();
+
+  useEffect(() => {
+    const action = actionRef.current;
+    if (!action) return;
+    actionRef.current = null;
+
+    // Parse parent IDs from pairKey (format: "id1_id2" or "id1_solo")
+    const parentIds = action.pairKey.replace('_solo', '').split('_');
+
+    const timer = setTimeout(() => {
+      if (action.action === 'collapse') {
+        // Center on the parent couple
+        const parentNodes = nodes.filter((n) => parentIds.includes(n.id));
+        if (parentNodes.length > 0) {
+          const avgX =
+            parentNodes.reduce((sum, n) => sum + n.position.x + NODE_WIDTH / 2, 0) /
+            parentNodes.length;
+          const avgY =
+            parentNodes.reduce((sum, n) => sum + n.position.y + NODE_HEIGHT / 2, 0) /
+            parentNodes.length;
+          setCenter(avgX, avgY, { zoom: 1, duration: 400 });
+        }
+      } else {
+        // Expand: zoom out to show the full expanded branch
+        fitView({ duration: 400, padding: 0.15 });
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [nodes, actionRef, setCenter, fitView]);
+
+  return null;
+}
+
 function TreeCanvasInner({
   people,
   relationships,
@@ -159,6 +202,9 @@ function TreeCanvasInner({
   focusPersonId,
   selectedPersonId,
 }: TreeCanvasProps) {
+  // Track the last collapse/expand action for viewport adjustment
+  const lastCollapseActionRef = useRef<{ pairKey: string; action: 'collapse' | 'expand' } | null>(null);
+
   const handlePersonClick = useCallback(
     (personId: string) => {
       if (onPersonSelect) onPersonSelect(personId);
@@ -563,6 +609,10 @@ function TreeCanvasInner({
             data: {
               isCollapsed,
               onToggle: () => {
+                lastCollapseActionRef.current = {
+                  pairKey,
+                  action: isCollapsed ? 'expand' : 'collapse',
+                };
                 if (onToggleCollapse) onToggleCollapse(pairKey);
               },
             },
@@ -603,6 +653,10 @@ function TreeCanvasInner({
             data: {
               isCollapsed,
               onToggle: () => {
+                lastCollapseActionRef.current = {
+                  pairKey: soloPairKey,
+                  action: isCollapsed ? 'expand' : 'collapse',
+                };
                 if (onToggleCollapse) onToggleCollapse(soloPairKey);
               },
             },
@@ -682,6 +736,7 @@ function TreeCanvasInner({
           maskColor="rgb(240, 240, 240, 0.6)"
         />
         <FocusHandler personId={focusPersonId} nodes={nodes} />
+        <CollapseViewHandler actionRef={lastCollapseActionRef} nodes={nodes} />
       </ReactFlow>
     </div>
   );

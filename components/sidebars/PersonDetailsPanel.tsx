@@ -648,8 +648,7 @@ export default function PersonDetailsPanel({
         </div>
 
         {/* ── Parents Section ─────────────────────────────────────── */}
-        {(parents.length > 0 || canAddParent) && (
-          <div>
+        <div>
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
               Parents
             </div>
@@ -677,18 +676,32 @@ export default function PersonDetailsPanel({
                 </button>
               ))}
 
-              {/* Only show "Add new parent" when person has NO parents yet */}
-              {canAddParent && parents.length === 0 && (
-                <button
-                  onClick={onAddParent}
-                  className="text-sm text-emerald-600 hover:text-emerald-800 block"
-                >
-                  + Add parent
-                </button>
+              {/* Show "Add new parent" when person has no parents */}
+              {parents.length === 0 && (
+                canAddParent ? (
+                  <button
+                    onClick={onAddParent}
+                    className="text-sm text-emerald-600 hover:text-emerald-800 block"
+                  >
+                    + Add parent
+                  </button>
+                ) : (
+                  <div className="group relative inline-block">
+                    <button
+                      disabled
+                      className="text-sm text-gray-300 cursor-not-allowed block"
+                    >
+                      + Add parent
+                    </button>
+                    <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 z-30 w-56 rounded-lg border border-gray-200 bg-white shadow-lg p-3 text-xs text-gray-600 leading-relaxed">
+                      Your tree can only grow upward in one direction. To capture {person.name}&apos;s family line, build their tree in a separate canvas.
+                      <div className="absolute left-4 top-full w-2 h-2 bg-white border-b border-r border-gray-200 transform rotate-45 -translate-y-1" />
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </div>
-        )}
 
         {/* ── Current Partner Section ─────────────────────────────── */}
         <div>
@@ -827,13 +840,28 @@ export default function PersonDetailsPanel({
         )}
 
         {/* Add Parent - only when person has no parents yet */}
-        {canAddParent && parents.length === 0 && (
-          <button
-            onClick={onAddParent}
-            className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 text-left"
-          >
-            + Add Parent
-          </button>
+        {parents.length === 0 && (
+          canAddParent ? (
+            <button
+              onClick={onAddParent}
+              className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 text-left"
+            >
+              + Add Parent
+            </button>
+          ) : (
+            <div className="group relative">
+              <button
+                disabled
+                className="w-full rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-300 cursor-not-allowed text-left"
+              >
+                + Add Parent
+              </button>
+              <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 z-30 w-full rounded-lg border border-gray-200 bg-white shadow-lg p-3 text-xs text-gray-600 leading-relaxed">
+                Your tree can only grow upward in one direction. To capture {person.name}&apos;s family line, build their tree in a separate canvas.
+                <div className="absolute left-4 top-full w-2 h-2 bg-white border-b border-r border-gray-200 transform rotate-45 -translate-y-1" />
+              </div>
+            </div>
+          )
         )}
 
         <div className="pt-2 border-t mt-2 space-y-2">
